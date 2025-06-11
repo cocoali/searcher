@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ウェブテキスト検索</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <h1>ウェブテキスト検索</h1>
+
+        <form id="searchForm">
+            <div class="form-group">
+                <label for="url">URL:</label>
+                <input type="url" id="url" name="url" required placeholder="https://example.com">
+            </div>
+
+            <div class="form-group">
+                <label for="search_text">検索テキスト:</label>
+                <input type="text" id="search_text" name="search_text" required>
+            </div>
+
+            <div class="form-group">
+                <label for="username">ユーザー名（オプション）:</label>
+                <input type="text" id="username" name="username">
+            </div>
+
+            <div class="form-group">
+                <label for="password">パスワード（オプション）:</label>
+                <input type="password" id="password" name="password">
+            </div>
+
+            <button type="submit" id="searchBtn">検索</button>
+        </form>
+
+        <div id="loading" style="display: none;">
+            <p>検索中...</p>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+
+</html>
