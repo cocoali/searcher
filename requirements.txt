@@ -4,3 +4,4 @@ beautifulsoup4==4.12.3
 gunicorn==21.2.0
 python-dotenv==1.0.1
 flask_limiter
+futures>=3.4.0
