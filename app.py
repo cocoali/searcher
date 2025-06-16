@@ -7,6 +7,11 @@ import time
 import re
 from concurrent.futures import ThreadPoolExecutor
 import traceback
+import logging
+
+# ロギング設定
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -25,7 +30,7 @@ def clean_text(text):
 def scrape_website(url, query=None):
     """ウェブサイトをスクレイピング"""
     try:
-        print(f"Scraping URL: {url}")
+        logger.info(f"Scraping URL: {url}")
         
         # URLの検証
         parsed_url = urlparse(url)
@@ -110,28 +115,35 @@ def scrape_website(url, query=None):
             }
             
     except requests.exceptions.Timeout:
+        logger.error(f"Timeout error for URL: {url}")
         return {"error": "リクエストがタイムアウトしました"}
     except requests.exceptions.ConnectionError:
+        logger.error(f"Connection error for URL: {url}")
         return {"error": "接続エラーが発生しました"}
     except requests.exceptions.HTTPError as e:
+        logger.error(f"HTTP error for URL: {url}, Status: {e.response.status_code}")
         return {"error": f"HTTPエラー: {e.response.status_code}"}
     except Exception as e:
-        print(f"Scraping error: {e}")
-        print(traceback.format_exc())
+        logger.error(f"Scraping error for URL: {url}, Error: {e}")
+        logger.error(traceback.format_exc())
         return {"error": f"スクレイピングエラー: {str(e)}"}
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        logger.error(f"Template rendering error: {e}")
+        return jsonify({'error': 'テンプレートの読み込みに失敗しました'}), 500
 
 @app.route('/search', methods=['POST'])
 def search():
     start_time = time.time()
     
     try:
-        print("Scraping endpoint called")
+        logger.info("Search endpoint called")
         data = request.get_json()
-        print(f"Request data: {data}")
+        logger.info(f"Request data received: {bool(data)}")
         
         if not data:
             return jsonify({'error': 'リクエストデータが提供されていません'}), 400
@@ -147,9 +159,9 @@ def search():
         if not url.startswith(('http://', 'https://')):
             url = 'https://' + url
         
-        print(f"Scraping URL: {url}")
+        logger.info(f"Processing URL: {url}")
         if query:
-            print(f"Query: {query}")
+            logger.info(f"Search query: {query}")
         
         # スクレイピング実行
         with ThreadPoolExecutor(max_workers=1) as executor:
@@ -159,31 +171,49 @@ def search():
                 elapsed_time = time.time() - start_time
                 
                 if 'error' in result:
+                    logger.warning(f"Scraping failed: {result['error']}")
                     return jsonify({
                         'error': result['error'],
                         'elapsed_time': round(elapsed_time, 2)
                     }), 400
                 
                 result['elapsed_time'] = round(elapsed_time, 2)
-                print(f"Scraping completed in {elapsed_time:.2f}s")
+                logger.info(f"Scraping completed successfully in {elapsed_time:.2f}s")
                 return jsonify(result)
                 
             except Exception as e:
-                print(f"ThreadPoolExecutor error: {e}")
+                logger.error(f"ThreadPoolExecutor error: {e}")
                 return jsonify({
                     'error': f'処理中にエラーが発生しました: {str(e)}'
                 }), 500
                 
     except Exception as e:
-        print(f"Request processing error: {e}")
-        print(traceback.format_exc())
+        logger.error(f"Request processing error: {e}")
+        logger.error(traceback.format_exc())
         return jsonify({'error': f'リクエスト処理でエラーが発生しました: {str(e)}'}), 500
 
 @app.route('/health')
 def health_check():
     """ヘルスチェック用エンドポイント"""
-    return jsonify({'status': 'healthy', 'timestamp': time.time()})
+    return jsonify({
+        'status': 'healthy', 
+        'timestamp': time.time(),
+        'port': os.environ.get('PORT', 'not set')
+    })
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return jsonify({'error': 'ページが見つかりません'}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    logger.error(f"Internal server error: {error}")
+    return jsonify({'error': '内部サーバーエラーが発生しました'}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    # Railway用のポート設定
+    port = int(os.environ.get('PORT', 8080))
+    debug_mode = os.environ.get('FLASK_ENV') == 'development'
+    
+    logger.info(f"Starting Flask app on port {port}, debug={debug_mode}")
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)
