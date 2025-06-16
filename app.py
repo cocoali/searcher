@@ -25,7 +25,7 @@ def search_with_timeout(query, timeout=API_TIMEOUT):
             ],
             max_tokens=500,
             temperature=0.7,
-            timeout=timeout  # APIレベルでのタイムアウト
+            request_timeout=timeout  # APIレベルでのタイムアウト
         )
         return response.choices[0].message.content.strip()
     except openai.error.Timeout:
